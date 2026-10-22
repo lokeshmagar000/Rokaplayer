@@ -5,8 +5,8 @@
 For Mac (Apple Silicon) and Android.</p>
 
 <p align="center">
-  <a href="https://github.com/lokeshmagar000/Rokaplayer/releases/latest/download/RokaPlayer-Mac.dmg"><b>⬇ Download for Mac (.dmg)</b></a> ·
-  <a href="https://github.com/lokeshmagar000/Rokaplayer/releases/latest/download/RokaPlayer-Android.apk"><b>⬇ Download for Android (.apk)</b></a> ·
+  <a href="https://github.com/lokeshmagar000/Rokaplayer/raw/main/download/RokaPlayer-Mac.dmg"><b>⬇ Download for Mac (.dmg)</b></a> ·
+  <a href="https://github.com/lokeshmagar000/Rokaplayer/raw/main/download/RokaPlayer-Android.apk"><b>⬇ Download for Android (.apk)</b></a> ·
   <a href="https://rokaplayer-da765.web.app">Website</a>
 </p>
 
