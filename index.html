@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RokaPlayer — 4K HDR & Dolby Vision player</title>
+  <meta name="description" content="Play 4K HDR and Dolby Vision movies with cinema sound. Fast and simple. For Mac (Apple Silicon) and Android.">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+
+  <style>
+    /* ============================================================
+       1. COLOURS (design tokens)
+       We store every colour once, here, as a CSS variable.
+       Later we use them like: color: var(--cyan);
+       ============================================================ */
+    :root {
+      --bg:      #05061A;
+      --bg-2:    #0D1030;
+      --text:    #EEF0FF;
+      --muted:   #A3A8D1;
+      --cyan:    #5EF2FF;
+      --violet:  #7C6CFF;
+      --pink:    #E558F5;
+      --orange:  #FFB86B;
+      --glass:   rgba(255, 255, 255, 0.06);
+      --border:  rgba(255, 255, 255, 0.12);
+      --hdr: linear-gradient(120deg, var(--cyan), var(--violet) 38%, var(--pink) 72%, var(--orange));
+
+      /* "Easing" = how speed changes during an animation.
+         This curve starts fast and ends very softly. */
+      --ease-out: cubic-bezier(.16, 1, .3, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Smooth scrolling when you click a link like href="#features" */
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    .container { width: min(1100px, 100% - 32px); margin-inline: auto; }
+
+    /* ============================================================
+       2. SCROLL PROGRESS BAR (thin line at the very top)
+       JavaScript changes its width as you scroll.
+       ============================================================ */
+    .progress {
+      position: fixed; top: 0; left: 0; z-index: 100;
+      height: 3px; width: 0;
+      background: var(--hdr);
+      box-shadow: 0 0 12px var(--violet);
+    }
+
+    /* ============================================================
+       3. MOVING BACKGROUND "AURORA" BLOBS
+       Three big blurred circles that slowly float around.
+       ============================================================ */
+    .aurora { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+    .aurora span {
+      position: absolute; border-radius: 50%;
+      filter: blur(90px); opacity: .45;
+      animation: float 18s ease-in-out infinite alternate;
+    }
+    .aurora span:nth-child(1) { width: 520px; height: 520px; background: #22D3EE; left: -120px; top: 40%; }
+    .aurora span:nth-child(2) { width: 480px; height: 480px; background: #EC4899; right: -140px; top: -80px; animation-delay: -6s; }
+    .aurora span:nth-child(3) { width: 380px; height: 380px; background: var(--violet); left: 40%; top: 70%; animation-delay: -12s; }
+
+    /* @keyframes describes the steps of an animation */
+    @keyframes float {
+      0%   { transform: translate(0, 0) scale(1); }
+      50%  { transform: translate(60px, -40px) scale(1.12); }
+      100% { transform: translate(-40px, 50px) scale(.92); }
+    }
+
+    /* ============================================================
+       4. NAVIGATION BAR
+       It starts clear. After you scroll, JS adds the class
+       "scrolled" and it smoothly turns into frosted glass.
+       ============================================================ */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      padding: 18px 0;
+      transition: padding .4s var(--ease-out), background .4s, backdrop-filter .4s, border-color .4s;
+      border-bottom: 1px solid transparent;
+    }
+    .nav.scrolled {
+      padding: 10px 0;
+      background: rgba(5, 6, 26, .65);
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+      border-color: var(--border);
+    }
+    .nav .container { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; }
+    .brand img { width: 34px; height: 34px; transition: transform .6s var(--ease-out); }
+    .brand:hover img { transform: rotate(-12deg) scale(1.1); }
+
+    .nav-links { display: flex; gap: 26px; font-size: .95rem; color: var(--muted); }
+    .nav-links a { position: relative; transition: color .3s; }
+    /* the underline that grows from the middle on hover */
+    .nav-links a::after {
+      content: ""; position: absolute; left: 50%; right: 50%; bottom: -4px;
+      height: 2px; background: var(--hdr); border-radius: 2px;
+      transition: left .35s var(--ease-out), right .35s var(--ease-out);
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a:hover::after { left: 0; right: 0; }
+    @media (max-width: 640px) { .nav-links { display: none; } }
+
+    /* ============================================================
+       5. HERO (the big first screen)
+       ============================================================ */
+    .hero { min-height: 100vh; display: grid; place-items: center; text-align: center; padding: 120px 0 60px; }
+
+    .hero-icon {
+      width: 150px; margin: 0 auto 28px;
+      animation: bob 6s ease-in-out infinite;
+      filter: drop-shadow(0 20px 40px rgba(124, 108, 255, .45));
+    }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0) rotate(0); }
+      50%      { transform: translateY(-14px) rotate(2deg); }
+    }
+
+    h1 { font-size: clamp(2.6rem, 7vw, 5rem); line-height: 1.05; letter-spacing: -.03em; }
+
+    /* Text filled with a gradient that slowly slides sideways */
+    .gradient-text {
+      background: var(--hdr);
+      background-size: 200% auto;
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent;
+      animation: shimmer 6s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: 200% center; } }
+
+    .tagline { font-size: clamp(1.05rem, 2.4vw, 1.35rem); color: var(--muted); max-width: 640px; margin: 18px auto 0; }
+
+    /* Badges that cycle through formats */
+    .formats { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 22px; }
+    .formats span {
+      font-size: .78rem; font-weight: 600; letter-spacing: .04em;
+      padding: 5px 12px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--glass);
+    }
+
+    /* "Load in" animation: each hero item rises and fades in,
+       one after another (the --d variable sets the delay). */
+    .intro { opacity: 0; transform: translateY(24px); animation: rise .9s var(--ease-out) forwards; animation-delay: var(--d, 0s); }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+
+    /* ============================================================
+       6. BUTTONS (with a light "shine" that sweeps across)
+       ============================================================ */
+    .buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 34px; }
+    .btn {
+      position: relative; overflow: hidden;
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 26px; border-radius: 14px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--glass);
+      transition: transform .35s var(--ease-out), box-shadow .35s, border-color .35s;
+    }
+    .btn.primary { background: var(--hdr); background-size: 200% auto; border: 0; color: #0b0b22; }
+    .btn:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(124, 108, 255, .4); border-color: rgba(255,255,255,.3); }
+    .btn:active { transform: translateY(-1px) scale(.98); }
+    .btn::before {
+      content: ""; position: absolute; top: 0; left: -75%;
+      width: 50%; height: 100%;
+      background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent);
+      transform: skewX(-20deg);
+      transition: left .7s var(--ease-out);
+    }
+    .btn:hover::before { left: 130%; }
+    .btn svg { width: 18px; height: 18px; transition: transform .35s var(--ease-out); }
+    .btn:hover svg { transform: translateY(3px); }
+
+    /* Small bouncing arrow at the bottom of the hero */
+    .scroll-hint { display: inline-block; margin-top: 50px; color: var(--muted); font-size: 1.4rem; animation: hint 2s ease-in-out infinite; }
+    @keyframes hint { 0%,100% { transform: translateY(0); opacity: .5; } 50% { transform: translateY(8px); opacity: 1; } }
+
+    /* ============================================================
+       7. SCREENSHOT with a glowing border and 3D tilt
+       ============================================================ */
+    .shot-wrap { perspective: 1200px; margin: 0 auto; max-width: 900px; }
+    .shot {
+      position: relative; border-radius: 22px; padding: 2px;
+      background: var(--hdr); background-size: 200% auto;
+      animation: shimmer 8s linear infinite;
+      transition: transform .5s var(--ease-out);
+      transform-style: preserve-3d;
+      box-shadow: 0 40px 100px rgba(0,0,0,.6), 0 0 80px rgba(124,108,255,.25);
+    }
+    .shot img { border-radius: 20px; width: 100%; }
+
+    /* ============================================================
+       8. SECTIONS + SCROLL REVEAL
+       Elements with class "reveal" start hidden. When they enter
+       the screen, JS adds "show" and they slide in smoothly.
+       ============================================================ */
+    section { padding: 100px 0; }
+    .section-title { font-size: clamp(1.9rem, 4.5vw, 2.8rem); text-align: center; letter-spacing: -.02em; }
+    .section-sub { color: var(--muted); text-align: center; margin: 10px auto 50px; max-width: 560px; }
+
+    .reveal {
+      opacity: 0; transform: translateY(40px) scale(.98);
+      transition: opacity .9s var(--ease-out), transform .9s var(--ease-out);
+      transition-delay: var(--d, 0s);
+    }
+    .reveal.show { opacity: 1; transform: none; }
+
+    /* ============================================================
+       9. FEATURE CARDS (glow follows your mouse)
+       ============================================================ */
+    .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .card {
+      position: relative; overflow: hidden;
+      padding: 26px; border-radius: 20px;
+      background: var(--glass); border: 1px solid var(--border);
+      transition: transform .45s var(--ease-out), border-color .45s, box-shadow .45s;
+    }
+    /* A soft light at the mouse position (--mx / --my set by JS) */
+    .card::before {
+      content: ""; position: absolute; inset: 0; opacity: 0;
+      background: radial-gradient(300px circle at var(--mx, 50%) var(--my, 50%), rgba(124,108,255,.28), transparent 60%);
+      transition: opacity .4s;
+    }
+    .card:hover { transform: translateY(-6px); border-color: rgba(255,255,255,.25); box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+    .card:hover::before { opacity: 1; }
+    .card > * { position: relative; }
+    .card .ico {
+      width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+      font-size: 1.4rem; margin-bottom: 14px;
+      background: linear-gradient(135deg, rgba(94,242,255,.18), rgba(229,88,245,.18));
+      border: 1px solid var(--border);
+      transition: transform .5s var(--ease-out);
+    }
+    .card:hover .ico { transform: scale(1.12) rotate(-8deg); }
+    .card h3 { font-size: 1.08rem; margin-bottom: 6px; }
+    .card p { color: var(--muted); font-size: .93rem; }
+
+    /* ============================================================
+       10. REQUIREMENTS + INSTALL (two-column panels)
+       ============================================================ */
+    .two { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .panel { padding: 30px; border-radius: 22px; background: var(--glass); border: 1px solid var(--border); }
+    .panel h3 { display: flex; align-items: center; gap: 10px; font-size: 1.3rem; margin-bottom: 12px; }
+    .panel p, .panel li { color: var(--muted); }
+    .panel ol { padding-left: 20px; display: grid; gap: 8px; }
+    .panel b { color: var(--text); }
+
+    .code {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-top: 14px; padding: 12px 14px; border-radius: 12px;
+      background: #000; border: 1px solid var(--border);
+      font-family: ui-monospace, Menlo, monospace; font-size: .82rem; color: var(--cyan);
+    }
+    .code code { overflow-x: auto; white-space: nowrap; }
+    .copy {
+      flex-shrink: 0; cursor: pointer; font: inherit; font-size: .75rem;
+      padding: 6px 10px; border-radius: 8px; color: var(--text);
+      background: var(--glass); border: 1px solid var(--border);
+      transition: background .3s, transform .2s;
+    }
+    .copy:hover { background: rgba(255,255,255,.14); }
+    .copy:active { transform: scale(.94); }
+
+    /* ============================================================
+       11. FOOTER
+       ============================================================ */
+    footer { padding: 60px 0 40px; border-top: 1px solid var(--border); text-align: center; color: var(--muted); font-size: .92rem; }
+    .socials { display: flex; justify-content: center; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
+    .socials a {
+      padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--glass);
+      transition: transform .35s var(--ease-out), background .35s, color .35s;
+    }
+    .socials a:hover { transform: translateY(-3px); background: rgba(255,255,255,.12); color: var(--text); }
+    footer small { display: block; margin-top: 20px; font-size: .75rem; opacity: .7; }
+
+    /* ============================================================
+       12. ACCESSIBILITY: some people get dizzy from motion.
+       If their device asks for "reduced motion", we switch
+       the animations off.
+       ============================================================ */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      html { scroll-behavior: auto; }
+      .intro, .reveal { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="progress" id="progress"></div>
+  <div class="aurora"><span></span><span></span><span></span></div>
+
+  <!-- ===================== NAVIGATION ===================== -->
+  <nav class="nav" id="nav">
+    <div class="container">
+      <a class="brand" href="#top"><img src="assets/icon.svg" alt="">RokaPlayer</a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#requirements">Requirements</a>
+        <a href="#install">Install</a>
+        <a href="#download">Download</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===================== HERO ===================== -->
+  <header class="hero" id="top">
+    <div class="container">
+      <img class="hero-icon intro" style="--d:.05s" src="assets/icon.svg" alt="RokaPlayer icon">
+      <h1 class="intro" style="--d:.15s">Movies in <span class="gradient-text">true HDR</span>,<br>with cinema sound.</h1>
+      <p class="tagline intro" style="--d:.3s">Play 4K HDR and Dolby Vision movies. Fast and simple. For Mac (Apple Silicon) and Android.</p>
+
+      <div class="formats intro" style="--d:.42s">
+        <span>4K</span><span>HDR10</span><span>HDR10+</span><span>Dolby Vision</span><span>TrueHD</span><span>DTS-HD</span>
+      </div>
+
+      <div class="buttons intro" id="download" style="--d:.55s">
+        <a class="btn primary" href="https://github.com/lokeshmagar000/Rokaplayer/raw/main/download/RokaPlayer-Mac.dmg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14"/></svg>
+          Download for Mac
+        </a>
+        <a class="btn" href="https://github.com/lokeshmagar000/Rokaplayer/raw/main/download/RokaPlayer-Android.apk">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 4v12m0 0l-5-5m5 5l5-5M5 20h14"/></svg>
+          Download for Android
+        </a>
+      </div>
+
+      <a class="scroll-hint intro" style="--d:.8s" href="#preview" aria-label="Scroll down">⌄</a>
+    </div>
+  </header>
+
+  <!-- ===================== SCREENSHOT ===================== -->
+  <section id="preview" style="padding-top:0">
+    <div class="container">
+      <div class="shot-wrap reveal">
+        <div class="shot" id="shot"><img src="assets/player.webp" alt="RokaPlayer playing a movie"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FEATURES ===================== -->
+  <section id="features">
+    <div class="container">
+      <h2 class="section-title reveal">Everything a movie lover needs</h2>
+      <p class="section-sub reveal">Built for big files, best picture and real cinema sound.</p>
+
+      <!-- Each card gets a small extra delay so they appear one by one -->
+      <div class="grid">
+        <div class="card reveal"><div class="ico">🌈</div><h3>True HDR & Dolby Vision</h3><p>HDR10, HDR10+, HLG and Dolby Vision, with hardware or software decoding.</p></div>
+        <div class="card reveal"><div class="ico">⚡</div><h3>Opens in a second</h3><p>Big MKV files open in about a second, with every audio and subtitle track.</p></div>
+        <div class="card reveal"><div class="ico">🔊</div><h3>Cinema sound</h3><p>Dolby Digital, DD+, TrueHD, DTS and DTS-HD, plus an equaliser.</p></div>
+        <div class="card reveal"><div class="ico">🎞️</div><h3>Smart library</h3><p>Posters, Continue watching and format badges for every movie.</p></div>
+        <div class="card reveal"><div class="ico">〰️</div><h3>Wave seek bar</h3><p>Chapter marks and a picture preview while you seek.</p></div>
+        <div class="card reveal"><div class="ico">⏭️</div><h3>Skip intro & credits</h3><p>Chapters and a sleep timer, too.</p></div>
+        <div class="card reveal"><div class="ico">💬</div><h3>8 subtitle styles</h3><p>Blu-ray original styles and Smart SDH.</p></div>
+        <div class="card reveal"><div class="ico">🤖</div><h3>Offline AI subtitles</h3><p>Made on your device with Whisper. Nothing is uploaded.</p></div>
+        <div class="card reveal"><div class="ico">🗣️</div><h3>Your languages remembered</h3><p>For both audio and subtitles.</p></div>
+        <div class="card reveal"><div class="ico">🖥️</div><h3>PC, NAS & Jellyfin</h3><p>Play from SMB shares and Jellyfin, and Cast to TV.</p></div>
+        <div class="card reveal"><div class="ico">💎</div><h3>Liquid Glass look</h3><p>Themes, a transparency slider and editable control buttons.</p></div>
+        <div class="card reveal"><div class="ico">☁️</div><h3>Continue anywhere</h3><p>Google sign-in syncs across devices. Free with ads, Premium removes them.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== REQUIREMENTS ===================== -->
+  <section id="requirements">
+    <div class="container">
+      <h2 class="section-title reveal">Requirements</h2>
+      <p class="section-sub reveal">Works on your Mac, phone, tablet and TV.</p>
+      <div class="two">
+        <div class="panel reveal"><h3>💻 Mac</h3><p>macOS 15 or newer, Apple Silicon (M1 and later).</p></div>
+        <div class="panel reveal" style="--d:.12s"><h3>📱 Android</h3><p>Android 8.0 or newer — phone, tablet or Android TV.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== INSTALL ===================== -->
+  <section id="install">
+    <div class="container">
+      <h2 class="section-title reveal">Install in a minute</h2>
+      <p class="section-sub reveal">Just a few easy steps.</p>
+      <div class="two">
+        <div class="panel reveal">
+          <h3>💻 Mac</h3>
+          <ol>
+            <li>Open <b>RokaPlayer-Mac.dmg</b> and drag RokaPlayer to <b>Applications</b>.</li>
+            <li>If macOS says it can't check the app, open <b>System Settings → Privacy & Security</b> and click <b>Open Anyway</b>.</li>
+            <li>If it says the app is “damaged”, run this in Terminal:</li>
+          </ol>
+          <div class="code">
+            <code id="cmd">xattr -dr com.apple.quarantine /Applications/RokaPlayer.app</code>
+            <button class="copy" id="copy" type="button">Copy</button>
+          </div>
+        </div>
+        <div class="panel reveal" style="--d:.12s">
+          <h3>📱 Android</h3>
+          <ol>
+            <li>Download <b>RokaPlayer-Android.apk</b> and tap it.</li>
+            <li>Allow your browser to <b>install unknown apps</b>.</li>
+            <li>Tap <b>Install</b>. Coming to Google Play soon!</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer>
+    <div class="container reveal">
+      <p>🔒 Your videos never leave your device. ·
+        <a href="https://rokaplayer-da765.web.app/privacy.html"><u>Privacy policy</u></a> ·
+        <a href="https://rokaplayer-da765.web.app/licenses.html"><u>Licences</u></a></p>
+      <div class="socials">
+        <a href="https://www.facebook.com/iamlokeshmagar">Facebook</a>
+        <a href="https://www.instagram.com/iamlokeshmagar">Instagram</a>
+        <a href="https://www.tiktok.com/@lokeshmagar000">TikTok</a>
+        <a href="mailto:lokeshmagar000@gmail.com">Email</a>
+      </div>
+      <p>Made with care in Nepal by <b>Lok Bahadur Roka Magar</b></p>
+      <small>Dolby, Dolby Vision and Dolby Digital are trademarks of Dolby Laboratories. DTS is a trademark of DTS, Inc. RokaPlayer is not made by or linked with them.</small>
+    </div>
+  </footer>
+
+  <script>
+    // Does the user want less motion? Then we skip the mouse effects.
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // ---------- A. Nav glass + scroll progress bar ----------
+    const nav = document.getElementById('nav');
+    const bar = document.getElementById('progress');
+    function onScroll() {
+      const y = window.scrollY;
+      nav.classList.toggle('scrolled', y > 30);              // add class after 30px
+      const max = document.documentElement.scrollHeight - innerHeight;
+      bar.style.width = (max > 0 ? (y / max) * 100 : 0) + '%'; // 0% → 100%
+    }
+    addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    // ---------- B. Scroll reveal ----------
+    // IntersectionObserver tells us when an element appears on screen.
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('show');
+          observer.unobserve(entry.target);                   // animate only once
+        }
+      });
+    }, { threshold: 0.15 });
+
+    // Cards in a row get a growing delay: 0s, 0.08s, 0.16s, 0.24s
+    document.querySelectorAll('.grid .card').forEach((card, i) => {
+      card.style.setProperty('--d', (i % 4) * 0.08 + 's');
+    });
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+
+    if (!calm) {
+      // ---------- C. Card glow follows the mouse ----------
+      document.querySelectorAll('.card').forEach((card) => {
+        card.addEventListener('pointermove', (e) => {
+          const r = card.getBoundingClientRect();
+          card.style.setProperty('--mx', e.clientX - r.left + 'px');
+          card.style.setProperty('--my', e.clientY - r.top + 'px');
+        });
+      });
+
+      // ---------- D. 3D tilt on the screenshot ----------
+      const shot = document.getElementById('shot');
+      shot.addEventListener('pointermove', (e) => {
+        const r = shot.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - 0.5;      // -0.5 … 0.5
+        const y = (e.clientY - r.top) / r.height - 0.5;
+        shot.style.transform = `rotateY(${x * 10}deg) rotateX(${-y * 10}deg) scale(1.02)`;
+      });
+      shot.addEventListener('pointerleave', () => { shot.style.transform = ''; });
+    }
+
+    // ---------- E. Copy the Terminal command ----------
+    const copyBtn = document.getElementById('copy');
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(document.getElementById('cmd').textContent);
+        copyBtn.textContent = 'Copied ✓';
+      } catch {
+        copyBtn.textContent = 'Press Ctrl+C';
+      }
+      setTimeout(() => (copyBtn.textContent = 'Copy'), 1800);
+    });
+  </script>
+</body>
+</html>
