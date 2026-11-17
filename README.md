@@ -2,6 +2,7 @@
 
 <h1 align="center">RokaPlayer</h1>
 <p align="center"><b>Your cinema, everywhere.</b><br>
+Version <b>1.0.6</b> · 
 Play 4K HDR and Dolby Vision movies with cinema sound. Fast, beautiful and simple.</p>
 
 <p align="center">
@@ -11,8 +12,8 @@ Play 4K HDR and Dolby Vision movies with cinema sound. Fast, beautiful and simpl
 </p>
 
 <p align="center">
-  <a href="https://github.com/lokeshmagar000/Rokaplayer/raw/main/download/RokaPlayer-Mac.dmg"><b>⬇ Download for Mac</b></a> &nbsp;·&nbsp;
-  <a href="https://github.com/lokeshmagar000/Rokaplayer/raw/main/download/RokaPlayer-Android.apk"><b>⬇ Download for Android</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/lokeshmagar000/Rokaplayer/releases/latest/download/RokaPlayer-Mac.dmg"><b>⬇ Download for Mac</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/lokeshmagar000/Rokaplayer/releases/latest/download/RokaPlayer-Android.apk"><b>⬇ Download for Android</b></a> &nbsp;·&nbsp;
   <a href="https://rokaplayer-da765.web.app"><b>🌐 Website</b></a>
 </p>
 
@@ -50,6 +51,8 @@ xattr -dr com.apple.quarantine /Applications/RokaPlayer.app
 ```
 
 **Android:** download `RokaPlayer-Android.apk`, tap it, allow your browser to *install unknown apps*, then tap **Install**. RokaPlayer is coming to Google Play soon.
+
+**Updating?** Just install the new version over the old one — your library and settings stay safe. All versions are on the [Releases page](https://github.com/lokeshmagar000/Rokaplayer/releases).
 
 ## 🔒 Privacy
 
