@@ -1,8 +1,8 @@
-<p align="center"><img src="assets/icon.svg" width="120" alt="RokaPlayer icon"></p>
+<p align="center"><img src="assets/icon.png" width="120" alt="RokaPlayer icon"></p>
 
 <h1 align="center">RokaPlayer</h1>
 <p align="center"><b>Your cinema, everywhere.</b><br>
-Version <b>1.0.6</b> · 
+Version <b>1.0.7</b> · 
 Play 4K HDR and Dolby Vision movies with cinema sound. Fast, beautiful and simple.</p>
 
 <p align="center">
